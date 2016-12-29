@@ -1,0 +1,151 @@
+1、请求的第一站是Spring的DispatcherServlet。与大多数基于Java的Web框架一样，Spring MVC所有的请求都会通过一个前端
+控制器。在Spring MVC中，DispatcherServlet就是前端控制器；
+DispatcherServlet的任务是将请求发送给Spring MVC的控制器controller。控制器是一个用于处理请求的Spring组件。在典型的
+应用程序中会有多个控制器。DispatcherServlet需要知道应该将请求发送给哪个控制器。所以DispatcherServlet会查询一个或多个处理器映射（hander mapping）
+来确定下一站在哪里。处理器映射会根据请求所带的URL信息来进行决策；
+2、一旦选择了合适的控制器，DispatcherServlet会将请求发送给选中的控制器。到了控制器，请求会卸下其负载（用户提供的信息）并耐心等待控制器处理这些信息。
+3、控制器在完成逻辑处理之后，通常会产生一些信息，这些信息需要返回给用户并在浏览器上显示。这些信息被称为模型（model）。处理器所做的最后一件事就是将
+模型数据打包，并标示出用于渲染输出的视图名。接下来将请求连同模型和视图名发送给DispatcherServlet；
+4、DispatcherServlet将会使用视图解析器（view resolver）来将逻辑视图名匹配为一个特定的视图实现；
+简单的基于javaConfig方式配置Spring MVC
+public class SpitterWebAppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer{
+
+	@Override
+	protected Class<?>[] getRootConfigClasses() {
+		// TODO Auto-generated method stub
+		return new Class<?>[]{RootConfig.class};
+	}
+
+	@Override
+	protected Class<?>[] getServletConfigClasses() {
+		// TODO Auto-generated method stub
+		return new Class<?>[]{WebConfig.class};
+	}
+
+	@Override
+	protected String[] getServletMappings() {
+		// TODO Auto-generated method stub
+		return new String[] {"/web/*"};
+	}
+
+}
+getServletMappings():配置映射路径的。
+getServletConfigClasses():方法返回的带有@Configuration注解的类将会用来定义DispatcherServlet应用上下文中的bean
+getRootConfigClasses():方法返回的带有@Configuration注解的类将会用来配置ContextLoaderListener创建的应用上下文中的bean
+在本例中：跟配置定义在RootConfig中，DispatcherServlet的配置声明在WebConfig中。稍后我们会看到这两个类中的内容
+
+最简单的WebConfig类：
+@Configuration
+@EnableWebMvc
+public class WebConfig {
+
+}
+这可以运行起来，它的确能够启用Spring MVC,但是还有不少问题要解决
+1、没有配置视图解析器。如果这样的话，Spring默认会使用BeanNameView-Resolver，这个视图解析器会查找ID与视图名称匹配的bean，并且查找的bean要
+实现View接口。它以这样的方式来解析视图；
+2、没有启用组件扫描。这样的结果是，Spring只能找到显示声明在配置类中的控制器；
+3、这样配置的话，DispatcherServlet会映射为应用的默认Servlet，所以他会处理所有的请求，包括对静态资源的请求，如图片、样式等
+
+WebConfig类详细配置
+@Configuration
+@EnableWebMvc//启用Spring MVC
+@ComponentScan(basePackages={"com.cn.test.web"}) //启用组件扫描，扫描带有@Controller的组件
+public class WebConfig extends WebMvcConfigurerAdapter{
+
+	//配置视图解析器
+	@Bean
+	public ViewResolver viewResolver(){
+		InternalResourceViewResolver resolver = 
+				new InternalResourceViewResolver();
+		resolver.setPrefix("/WEB-INF/views/");
+		resolver.setSuffix(".jsp");
+		resolver.setExposeContextBeansAsAttributes(true);
+		return resolver;
+	}
+	
+	//配置静态资源的处理
+	@Override
+	public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+		// TODO Auto-generated method stub
+		configurer.enable();
+	}
+	
+}
+1、WebConfig添加了@ComponentScan注解，因此将会扫描com.cn.test.web包来查找组件。稍后你会看到，我们所编写的控制器会带有@Controller
+注解，这会使其成为组件扫描时候候选bean。因此，我们不需要再配置类中显示的声明任何控制器
+2、接下来，我们添加了一个ViewResolver bean，在这里他会查找文件，在查找的时候，他会在视图名称上加一个特定的前缀和后缀。
+3、最后，新的WebConfig类还扩展了WebMvcConfigurerAdapter并重写了其configureDefaultServletHandling方法。通过调用DefaultServletHandlerConfigurer
+的enable()方法，要求DispatcherServlet将对静态资源的请求转发到Servlet容器中默认的Servlet上。而不是使用DispatcherServlet本身来处理此类请求
+
+RootConfig类基本配置：
+@Configuration
+@ComponentScan(basePackages={"com.cn.test"},excludeFilters={
+		@Filter(type=FilterType.ANNOTATION,value=EnableWebMvc.class)
+})
+public class RootConfig {
+
+}
+这里对RootConfig不做过多介绍
+
+基本控制类：
+@Controller//声明一个控制器
+public class HomeController {
+
+	@RequestMapping(value="/home/test",method=RequestMethod.GET)//处理对/web/home/test的请求
+	public String home(){
+		return "test";//返回的试图名称
+	}
+}
+
+1、你也可以让HomeController带有@Component注解，他实现的效果是一样的，但是在表意上回差一些，无法确定HomeController是什么组件类型
+@RequestMapping注解，他的value属性制定了这个方法所要处理的请求路径，method属性细化了他所处理的HTTP方法。
+2、在本例中收到对"/web/home/test"的HTTP GET请求时，就会调用home()方法，为何需要加/web呢，由于我们在SpitterWebAppInitializer配置了
+DispatcherServlet映射路径是/web/*。
+3、home()方法返回了一个String类型"test"，这个String将会被SpringMVC解读为要渲染的视图名称。DispatcherServlet会要求视图解析器将这个逻辑名称解析为
+实际的视图。鉴于我们配置的InternalResourceViewResolver方式，视图名"test"将会解析为"/WEB-INF/views/test.jsp"路径下的JSP。
+
+JSP文件
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Insert title here</title>
+</head>
+<body>
+测试第一个搭建的SpringMVC
+</body>
+</html>
+
+接受请求参数
+SpringMVC允许以多种方式将客户端中的数据传送到控制器的处理方法中，包括：
+查询参数（Query Parameter）
+表单参数（Form Parameter）
+路径变量（Path Parameter）
+
+查询参数（Query Parameter）:
+Ctroller 获取参数方式：
+@RequestParam("param1") String param1;
+@RequestParam("param2") Integer param2;
+
+查询参数（Path Parameter）:
+Ctroller 获取参数方式：
+@PathVariable("param3") String param3；
+
+Ctroller：
+@Controller//声明一个控制器
+public class HomeController {
+
+	@RequestMapping(value="/home/test/{param3}",method=RequestMethod.GET)//处理对/web/home/test的请求
+	public String home(Model model,
+			@RequestParam("param1") String param1,
+			@RequestParam("param2") Integer param2,
+			@PathVariable("param3") String param3){
+		model.addAttribute("model", "我是一个填充的参数");
+		return "test";//返回的试图名称
+	}
+}
+
+访问链接示例：http://localhost:8080/web/home/test/para3?param1=para1&param2=2
+

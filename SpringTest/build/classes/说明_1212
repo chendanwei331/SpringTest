@@ -1,0 +1,159 @@
+1、Spring使用AspecJ注解来声明通知方法
+注解：通知
+@After:通知方法会在目标方法返回或抛出异常后调用
+@AfterReturning:通知方法会在目标方法成功返回后调用
+@AfterThrowing:通知方法会在目标方法抛出异常后调用
+@Around:通知方法会将目标方法封锁起来
+@Before:通知方法会在目标方法调用之前调用
+
+@Pointcut:定义切点。
+用法示例：
+在AspectLog中，excudeService()方法使用了@Pointcut注解。为@Pointcut注解设置的值是一个切点表达式。
+excudeService()方法的内容并不重要，在这里他实际上应该是空的。其实该方法本身只是一个标识，供@Pointcut注解依附。
+
+简单的小示例：
+@Aspect
+@Configuration
+public class AspectLog {
+
+	@Pointcut("execution(* service.IPerformanceService.*(..))")
+	public void excudeService(){
+		
+	}
+	
+	@Before("excudeService()")
+	public void doBeforeInServiceLayer(){
+		System.out.println("before.....");
+	}
+	
+	@Around("excudeService()")
+	public Object doAround(ProceedingJoinPoint pjp) throws Throwable{
+		System.out.println("before proceed");
+		Object obj = pjp.proceed();
+		System.out.println("after proceed");
+		return obj;
+	}
+	
+	@After("excudeService()")
+	public void doAfterInServiceLayer(JoinPoint joinPoint) {  
+		System.out.println("after.....");
+	}
+	
+}
+
+public interface IPerformanceService {
+
+	public String testPerformence();
+}
+
+@Service("performenceService")
+public class PerformenceServiceImpl implements IPerformanceService{
+
+	@cold
+	@Override
+	public String testPerformence(){
+		return "performence";
+	}
+}
+
+@Configuration
+@ComponentScan(basePackageClasses=IPerformanceService.class)
+@EnableAspectJAutoProxy(proxyTargetClass=true)
+public class AppConfig {
+
+    
+}
+
+@EnableAspectJAutoProxy(proxyTargetClass=true)：启用AspectJ自动代理
+
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration(classes={AppConfig.class,AspectLog.class})
+public class TestSpringBean_Aspect {
+
+	@Autowired
+	private IPerformanceService performanceService;
+	
+	@Test
+	public void test() {
+		System.out.println(performanceService.testPerformence()+"~~~");
+	}
+
+}
+
+执行打印结果
+before proceed
+before.....
+after proceed
+after.....
+performence~~~
+
+由打印结果可得出执行顺序：Around方法的pjp.proceed()执行之前 ---> before方法 ---> Around方法的pjp.proceed()执行之后 ---> after方法
+
+在XML中声明切面
+1、在xml头部声明AOP的命名空间
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop-4.0.xsd
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+        http://www.springframework.org/schema/tx
+        http://www.springframework.org/schema/tx/spring-tx-4.0.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context-4.0.xsd">
+
+</beans>
+
+AOP配置元素:用途
+<aop:advisor>:定义AOP通知器
+<aop:after>:定义AOP后置通知（不管被通知的方法是否执行成功）
+<aop:after-returning>:定义AOP返回通知
+<aop:after-throwing>:定义AOP异常通知
+<aop:around>:定义AOP环绕通知
+<aop:aspect>:定义一个切面
+<aop:aspectj-autoproxy>:启用@AspectJ注解驱动的切面
+<aop:before>:定义一个AOP前置通知
+<aop:config>:顶层的AOP配置元素。大多数的<aop:*>元素必须包含在<aop:config>元素内
+<aop:declare-parents>:以透明方式为被通知的对象引入额外的接口
+<aop:pointcut>:定义一个切点
+
+xml配置实例
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop-4.0.xsd
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+        http://www.springframework.org/schema/tx
+        http://www.springframework.org/schema/tx/spring-tx-4.0.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context-4.0.xsd">
+
+	<bean id="performanceService" class="service.PerformenceServiceImpl"></bean>
+	<bean id="aspectLogBean" class="Config.AspectLogBean"></bean>
+	<aop:aspectj-autoproxy></aop:aspectj-autoproxy>
+	<aop:config>
+		<aop:aspect ref="aspectLogBean">
+			<aop:pointcut expression="execution(* service.IPerformanceService.*(..))" id="excudeService"/>
+			<aop:before method="doBeforeInServiceLayer" pointcut-ref="excudeService"/>
+			<aop:after method="doAfterInServiceLayer" pointcut-ref="excudeService"/>
+			<aop:around method="doAround" pointcut-ref="excudeService"/>
+		</aop:aspect>
+	</aop:config>
+</beans>
+关于SpringAOP配置元素，第一个需要注意的事项是大多数的AOP配置元素必须在<aop:config>元素的上下文内使用。这条规则有几种意外场景，但是把bean声明为一个切面时，
+我们总是从<aop:config>元素开始配置的。
+在<aop:config>元素内，我们可以声明一个或多个通知器、切面或者切点。
+上述，我们使用<aop:aspect>元素生命了一个简单的切面，ref元素应用了一个POJO Bean，该bean实现了切面的功能。
+<aop:pointcut>定义了一个切点，它被多个通知通过pointcut-ref引用
+
+jar包：
+aopalliance.jar 、 aspectjweaver-1.8.9.jar、spring-aop-4.1.6.RELEASE.jar、spring-aspects-4.1.6.RELEASE.jar

@@ -1,0 +1,210 @@
+@Component 应用在一个类上，表示该类是一个组件类，并告知spring要为该类创建bean
+
+@ComponentScan 启用组件扫面，默认规则会以配置类所在的包作为基础包basePackages来扫描组件
+@ComponentScan(basePackages = "xxx.xx.xxx")若是想扫描不同的包配置basePackages="想扫描的包名"，若是想扫描多个包
+可以配置@ComponentScan(basePackages = { "xxx.xx.xxx.包1","xxx.xx.xxx.包2"})
+@ComponentScan(basePackageClasses=BeanConfig.class)除了将包设置为简单的String类型表示之外，@ComponentScan还
+提供了另一种方法，那就是将其指定为包中所包含的类或接口。
+@ComponentScan 作用等同于xml中配置的<context:component-scan base-package="xxx.xx.xxx"/>
+
+@RunWith(SpringJUnit4ClassRunner.class) 使用spring-test做单元测试
+@ContextConfiguration(classes=AppConfig.class)加载配置类AppConfig
+@ContextConfiguration(locations = {"classpath:META-INF/spring/applicationContext-redis.xml")加载xml配置文件
+
+通过JAVA代码装配bean
+1、创建JavaConfig配置类，关键在于在JavaConfig类上添加@Configuration注解
+@Configuration注解标明该类是一个配置类
+2、在配置类中生命简单的bean，例如：
+	@Bean
+	public SimpleMovieLister getSimpleMovieLister(){
+		return new SimpleMovieLister();
+	}
+@Bean注解将会告诉Spring这个方法将会返回一个对象，该对象要注册为Spring应用上下文的bean。方法体中包含了最终产生bean实例的逻辑
+默认情况下，bean的ID与带有@bean注解的方法名是一样的。如果想设置不同的名字的话，可以重命名该方法，也可以指定一个不同的名字，如下：
+	@Bean(name="simpleMovieLister")
+	public SimpleMovieLister getSimpleMovieLister(){
+		return new SimpleMovieLister();
+	}
+我们在getSimpleMovieLister方法中可以调用SimpleMovieLister类中的构造函数或者set方法，从而为SimpleMovieLister类注入其他bean
+
+通过xml装配bean
+创建一个xml文件，以<beans></beans>元素为根
+最简单的xml文件如下：
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd">
+</beans>
+在SpringXML配置中，只有一种声明bean的方式：使用<bean>元素指定class属性。
+但是在xml中声明DI(依赖注入)时，会有多种可选的方案和风格。
+例如：
+1、构造器注入：
+	构造器通过名称注入bean或基本类型属性
+	<bean id="exampleBean" class="com.cn.test.ExampleBean">
+	    <constructor-arg name="years" value="7500000"/>
+	    <constructor-arg name="ultimateAnswer" value="421"/>
+	    <constructor-arg name="bean" ref="beannnn"></constructor-arg>
+	</bean>
+	构造器通过位置注入bean或基本类型属性
+	<bean id="exampleBean" class="com.cn.test.ExampleBean">
+	    <!--位置方式：使用index-->
+	    <constructor-arg index="0" value="7500005"></constructor-arg>
+	    <constructor-arg index="1" value="436"></constructor-arg>
+	   	 <!--若是复杂属性，则使用ref-->
+	    <constructor-arg index="2" ref="beannnn"></constructor-arg>
+	</bean>
+	以上两个构造器注入实例，当基本参数时，使用value="xxx",当引用类型时使用ref="bean的id值"
+	
+	构造器通过命名空间c-注入bean或基本类型属性
+	若使用命名空间c-，则首先需要在xml的顶部声明起模式，如下所示：
+	<beans xmlns="http://www.springframework.org/schema/beans"
+		xmlns:c="http://www.springframework.org/schema/c"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	    xsi:schemaLocation="http://www.springframework.org/schema/beans
+	        http://www.springframework.org/schema/beans/spring-beans.xsd
+	        http://www.springframework.org/schema/context
+	        http://www.springframework.org/schema/context/spring-context.xsd">
+        ...
+	</beans>
+	使用方式如下：
+	<bean id="exampleBeanC" class="com.cn.test.ExampleBean" c:years="7500000" c:ultimateAnswer="422" c:bean-ref="beannnn"/>
+	说明：属性名以c:开头，也就是命名空间的前缀；接下来就是要装配的构造器的参数名，在此之后是"-ref",这是一个命名的约定，它会告诉spring正在装配的是一个bean引用。要注入的bean的id是beannnn
+	c:name="构造函数依赖Name值" c:name-ref="构造函数依赖bean"
+	
+	构造器命名空间方式按位置注入
+	<bean id="exampleBeanC" class="com.cn.test.ExampleBean" c:_0="7500000" c:_1="422" c:_2-ref="beannnn"/>
+	将参数的名称换为0,1,2即使用了参数的索引。若构造器只有一个参数，则可省去索引值
+
+2、构造器注入集合类型
+	list容器内是String类型数据
+	<bean id="exampleBean" class="com.cn.test.ExampleBean">
+		<constructor-arg name="list">
+			<list>
+				<value>value1</value>
+				<value>value2</value>
+			</list>
+		</constructor-arg>
+	</bean>
+	list容器内是bean类型数据
+	<bean id="exampleBean" class="com.cn.test.ExampleBean">
+		<constructor-arg name="list">
+			<list>
+				<ref bean="beannnn"/>
+			</list>
+		</constructor-arg>
+	</bean>
+	同理可配置set，properties，map等集合
+	若创建set集合所有重复值都会被忽略掉，存放顺序也不会得以保证。目前使用c-方式无法实现装配集合属性的功能
+	
+3、基于属性的setter方法注入
+
+	名称注入：
+	<bean id="exampleBeanP" class="com.cn.test.ExampleBean">
+	    <property name="years" value="7500001"></property>
+	    <property name="ultimateAnswer" value="433"></property>
+	    <!--若是复杂属性，则使用ref-->
+	    <property name="bean" ref="beannnn"></property>
+	</bean>
+	
+	<property>元素为属性的Setter方法所提供的功能与<constructor-arg>元素为构造器所提供的功能是一样的
+	ref的值表示将id值为beannnn的bean注入名称为setBean方法的
+	
+	命名空间注入：
+	若使用命名空间注入，首先需要在xml顶部添加声明，如下：
+	<beans xmlns="http://www.springframework.org/schema/beans"
+		xmlns:p="http://www.springframework.org/schema/p"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	    xsi:schemaLocation="http://www.springframework.org/schema/beans
+	        http://www.springframework.org/schema/beans/spring-beans.xsd
+	        http://www.springframework.org/schema/context
+	        http://www.springframework.org/schema/context/spring-context.xsd">
+        ...
+	</beans>
+	<bean id="exampleBeanC" class="com.cn.test.ExampleBean" p:years="7500000" p:ultimateAnswer="422" p:bean-ref="beannnn"/>
+	说明：属性名以p:开头，也就是命名空间的前缀；接下来就是要装配的属性名成，在此之后是"-ref",这是一个命名的约定，它会告诉spring正在装配的是一个bean引用。要注入的bean的id是beannnn
+	如果没有-ref后缀的话，所装配的就是字面量，即基本属性
+	
+4、基于属性的setter方法注入集合
+
+	<bean id="complexObject" class="com.cn.test.ComplexObject">
+	    <property name="adminEmails">
+	        <props>
+	            <prop key="administrator">administrator@example.org</prop>
+	            <prop key="support">support@example.org</prop>
+	            <prop key="development">development@example.org</prop>
+	        </props>
+    	</property>
+    	    <!-- results in a setSomeList(java.util.List) call -->
+    <property name="someList">
+        <list>
+            <value>testList1</value>
+            <value>testList2</value>
+        </list>
+    </property>
+    <!-- results in a setSomeMap(java.util.Map) call -->
+    <property name="someMap">
+        <map>
+            <entry key="map1" value="test111"/>
+        </map>
+    </property>
+    <!-- results in a setSomeSet(java.util.Set) call -->
+    <property name="someSet">
+        <set>
+            <value>set1</value>
+            <value>set2</value>
+        </set>
+    </property>
+	</bean>
+	
+5、使用Spring util-命名空间简化bean配置
+
+	首先需要在xml顶部声明util-命名空间及模式
+	<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:util="http://www.springframework.org/schema/util"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/util
+        http://www.springframework.org/schema/util/spring-util.xsd">
+        
+            使用案例：
+    <bean id="complexObject" class="com.cn.test.ComplexObject">
+	    <property name="someList" ref="someList"></property>
+	</bean>
+	<util:list id="someList">
+		<value>administrator@example.org</value>
+		<value>support@example.org</value>
+		<value>development@example.org</value>
+	</util:list>
+	
+	Spring util-命名空间的元素
+	<util:constant/>引用某个类型的public static域，并将其暴露为bean
+	<util:list></util:list>创建一个java.util.List类型的bean，其中包含值或引用
+	<util:map></util:map>创建一个java.util.Map类型的bean，其中包含值或引用
+	<util:properties></util:properties>创建一个java.util.Properties类型的bean，其中包含值或引用
+	<util:property-path/>引用一个bean的属性（或内嵌属性），并将其暴露为bean
+	<util:set></util:set>创建一个java.util.Set类型的bean，其中包含值或引用
+	
+导入和混合配置
+
+	1、JavaConfig使用@Import注解导入一些其他JavaConfig配置，从而进行配置拆分，是配置看起来更加整洁
+	@Import({AppConfig1.class,AppConfig2.class})
+	
+	2、JavaConfig使用@ImportResource注解导入一些其他xml配置
+	@ImportResource({"classpath:xxx1.xml","classpath:xxx2.xml"})
+	
+	3、使用<import>元素引入其他xml文件，利于xml文件拆分
+	<import resource="要引入的xml路径"/>
+	
+	4、xml文件中引入JavaConfig配置文件
+	<bean class="JavaConfig全限定名"></bean>
+	
+	
+	
+	
+	
+
+	

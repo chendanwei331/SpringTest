@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:util="http://www.springframework.org/schema/util"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd">
+	<bean id="complexObject" class="com.cn.test.other.ComplexObject">
+	    <property name="adminEmails">
+	        <props>
+	            <prop key="administrator">administrator@example.org</prop>
+	            <prop key="support">support@example.org</prop>
+	            <prop key="development">development@example.org</prop>
+	        </props>
+    	</property>
+    	    <!-- results in a setSomeList(java.util.List) call -->
+	    <property name="someList">
+	        <list>
+	            <value>testList1</value>
+	            <value>testList2</value>
+	        </list>
+	    </property>
+    <!-- results in a setSomeMap(java.util.Map) call -->
+	    <property name="someMap">
+	        <map>
+	            <entry key="map1" value="test111"/>
+	        </map>
+	    </property>
+    <!-- results in a setSomeSet(java.util.Set) call -->
+    	<property name="someSet">
+        <set>
+            <value>set1</value>
+            <value>set2</value>
+        </set>
+    </property>
+	</bean>
+</beans>

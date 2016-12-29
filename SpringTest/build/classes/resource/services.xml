@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:c="http://www.springframework.org/schema/c"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd">
+        
+    <!-- 知识点：构造函数方式依赖注入 -->
+    <!--  <bean id="beannnn" class=""></bean>  -->
+	<bean id="exampleBean" class="com.cn.test.other.ExampleBean">
+	    <constructor-arg name="years" value="7500000"/>
+	    <constructor-arg name="ultimateAnswer" value="421"/>
+	    <!--  
+	            位置方式：使用index
+	    <constructor-arg index="0" value="7500005"></constructor-arg>
+	    <constructor-arg index="1" value="436"></constructor-arg>
+	   	 若是复杂属性，则使用ref
+	    <constructor-arg name="bean" ref="beannnn"></constructor-arg>
+	    -->
+	</bean>
+	<bean id="simpleMovieLister" class="com.cn.test.other.SimpleMovieLister"></bean>
+	<!--<bean id="movieFinder" class="com.cn.test.MovieFinder"></bean>-->
+	
+	<bean id="exampleBeanP" class="com.cn.test.other.ExampleBean">
+	    <property name="years" value="7500001"></property>
+	    <property name="ultimateAnswer" value="433"></property>
+	    <!--  
+	    	若是复杂属性，则使用ref
+	    	<property name="bean" ref="beannnn"></property>
+	    -->
+	</bean>
+	
+	<bean id="exampleBeanC" class="com.cn.test.other.ExampleBean" c:years="7500000" c:ultimateAnswer="422"/>
+	
+	<!-- 
+		知识点1：
+		c:name="构造函数依赖Name值" c:name-ref="构造函数依赖bean"
+		p:name="set属性依赖Name值" p:name-ref="set属性依赖bean"
+		命名空间方式注入
+		<bean id="exampleBeanC" class="com.cn.test.ExampleBean" c:beans-ref="beandsss" c:ultimateAnswer="422"/> 
+		<bean id="beandsss" class=""/>
+		
+		构造器命名空间方式按位置注入
+		index declaration
+		<bean id="foo" class="x.y.Foo" c:_0-ref="bar" c:_1-ref="baz"/>
+		
+		下面实例是符合属性赋值，即给foo bean中的fred bean中的bob bean的sammy属性赋值"123"
+		注意构造器实例化时必须保证fred、bob不能为null，否则会报空指针异常
+		<bean id="foo" class="foo.Bar">
+    		<property name="fred.bob.sammy" value="123" />
+		</bean>
+		
+		知识点2：
+		ExampleBean 依赖ManagerBean，但是manager并不是ExampleBean中的一个属性，只是在初始化方法中使用了。使用属性depends-on来表示单个依赖关系的bean
+		依赖属性可以在使用此元素的bean初始化之前显式强制一个或多个bean被初始化
+		bean定义中的依赖属性可以指定初始化时间依赖性，以及在单独bean的情况下，相应的销毁时间依赖性。
+		在给定的bean本身被销毁之前，首先销毁与给定bean定义依赖关系的依赖bean。 因此依赖也可以控制停机顺序。
+		 示例一：
+		<bean id="beanOne" class="ExampleBean" depends-on="manager"/>
+		<bean id="manager" class="ManagerBean" />
+		示例二：
+		<bean id="beanOne" class="ExampleBean" depends-on="manager,accountDao">
+		    <property name="manager" ref="manager" />
+		</bean>
+		<bean id="manager" class="ManagerBean" />
+		<bean id="accountDao" class="x.y.jdbc.JdbcAccountDao" />
+		
+		知识点3：
+		懒加载，在bean中设置lazy-init="true" 或者在beans中设置default-lazy-init="true" (不建议使用，以防隐藏的异常不被发现)
+		
+	-->
+	<!-- 
+		知识点4：
+		为bean设置scope属性~~作用域
+		Scope取值：
+		Singleton（默认值）：每次getBean(“a”) 得到的对象是同一个，指向同一个引用
+		通常为“singleton”（一个共享实例，将由所有调用返回getBean与给定的id），或“原型”（独立实例从每次调用getBean产生）。默认情况下，bean将是单例，除非bean有一个父bean定义，在这种情况下它会继承父级的作用域。 单例是最常用的，是多线程的理想选择服务对象。
+		Prototype：每次getBean(“a”) 得到不同的对象，每次均创建一个新对象
+		Request：一次请求范围内bean是同一个
+		Session：一次会员范围内bean是同一个
+		
+		知识点5：初始化和销毁方法
+		方式一：确定耦合性太大
+		初始化方法：bean 实现implements   InitializingBean 并重写：afterPropertiesSet方法
+		销毁方法： bean 实现implements   DisposableBean 并重写：destroy方法
+		方式二：在xml文件的<bean/>中配置init-method和destroy-method
+		例如：
+		<bean id="exampleInitBean" class="examples.ExampleBean" init-method="init"/>
+		<bean id="exampleInitBean" class="examples.ExampleBean" destroy-method="cleanup"/>
+		方式三：规范初始化方法名称init()及销毁方法名称destroy()
+		在beans标签中配置<beans default-init-method="init">
+		方式四：用@PostConstruct和@PreDestroy注释
+	
+		知识点5：打算使用spring注解的配置，注意spring的声明
+		
+		<context:annotation-config/>仅在定义bean的相同应用程序上下文中查找bean上的注释。
+		
+		知识点6：
+		@Required放置在setting方法上，表示必须依赖
+		@Autowired自动装配
+		@Autowired，@Inject，@Resource和@Value注释由Spring BeanPostProcessor实现处理，
+		这反过来意味着您不能在自己的BeanPostProcessor或BeanFactoryPostProcessor类型（如果有）中应用这些注释。
+		 这些类型必须通过XML或使用Spring @Bean方法显式连接。 
+		@Qualifier：当自动装配不同包同名类时，用@Qualifier("xml中的id值")与@Autowired配合使用
+		@Resource的作用相当于@Autowired，只不过@Autowired按byType自动注入，而@Resource默认按byName自动注入罢了。
+		@Resource有两个属性是比较重要的，分别是name和type，Spring将@Resource注解的name属性解析为bean的名字，而type属性则解析为bean的类型。
+		所以如果使用name属性，则使用byName的自动注入策略，而使用type属性时则使用byType自动注入策略。
+		如果既不指定name也不指定type属性，这时将通过反射机制使用byName自动注入策略。
+		   <bean class="example.SimpleMovieCatalog">
+		        <qualifier value="main"/>
+		    </bean>
+		    <bean class="example.SimpleMovieCatalog">
+		        <qualifier value="action"/>
+		    </bean>
+		@PostConstruct 初始化回调函数
+		@PreDestroy 销毁回调函数
+		使用@Component、@Service、@Controller、@Repository需要开启扫描<context：component-scan>
+		使用<context：component-scan>隐式地启用了<context：annotation-config>的功能。 
+		使用<context：component-scan>时通常不需要包含<context：annotation-config>元素。
+				<bean id="exampleBean" class="com.cn.test.ExampleBean">
+			<constructor-arg name="list">
+				<list>
+					<value>value1</value>
+					<value>value2</value>
+				</list>
+			</constructor-arg>
+		</bean>
+		<bean id="exampleBean" class="com.cn.test.ExampleBean">
+			<constructor-arg name="list">
+				<list>
+					<ref bean="beannnn"/>
+				</list>
+			</constructor-arg>
+		</bean>
+	 -->
+		<!--  <context:annotation-config/> -->
+		<context:component-scan base-package="com.cn.test"/>
+</beans>
