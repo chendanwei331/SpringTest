@@ -1,0 +1,335 @@
+环境与profile
+在3.1版本中，Spring引入了bean profile的功能。要使用profile，你首先要将所有不同的bean整理到一个或多个profile之中，
+再将应用部署到每个环境时，要确保对应不同的profile处于激活(active)的状态。
+在java配置中，可以用@Profile注解指定某个bean属于哪一个profile
+实例代码：
+@Configuration
+@Profile("dev")
+public class ProfileConfig {
+
+	@Bean(name="simpleMovieLister")
+	public SimpleMovieLister getSimpleMovieLister(){
+		return new SimpleMovieLister();
+	}
+	
+	@Bean(name="movieFinder")
+	public MovieFinder getMovieFinder(){
+		return new MovieFinder();
+	}
+	
+}
+这个实例可以看到@Profile应用到了类级别上，他会告诉Spring这个配置类中的bean只有在dev Profile激活时才会创建。
+若dev Profile没有激活的话，那么带有@bean注解的方法都会被忽略
+在Spring3.1中，只能在类级别上使用@Profile注解，从Spring3.2开始，也开始在方法级别上使用@Profile，与@Bean一同使用
+使用实例：
+@Configuration
+public class ProfileConfig {
+
+	@Bean(name="simpleMovieLister")
+	@Profile("dev")
+	public SimpleMovieLister getSimpleMovieLister(){
+		return new SimpleMovieLister();
+	}
+	
+	@Bean(name="movieFinder")
+	@Profile("prod")
+	public MovieFinder getMovieFinder(){
+		return new MovieFinder();
+	}
+}
+注意：
+1、尽管SimpleMovieLister和MovieFinder在一个profile中，但只有当规定的Profile激活时，相应的bean才会被创建。
+2、可能会有其他的bean并没有声明在一个给定的profile范围内。
+3、没有指定profile的bean始终都会被创建，与激活哪个profile没有关系
+
+在XML中配置Profile
+我们可以通过<beans>元素的profile属性，在xml中配置profile bean。
+实例代码
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:util="http://www.springframework.org/schema/util"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd" profile="dev">
+</beans>
+还可以在跟元素<beans>元素中嵌套定义<beans>元素，而不是为每个环境都创建一个profile xml文件。这能够将所有的profile bean定义放到
+同一个xml文件中，如下所示：
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:util="http://www.springframework.org/schema/util"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd" profile="dev">
+    <beans profile="dev">
+    	...
+    </beans>
+    <beans profile="prod">
+    	...
+    </beans>
+</beans>
+
+如何激活profile
+Spring在确定哪个profile处于激活状态时，需要依赖两个独立属性
+spring.profiles.active和spring.profiles.default
+以spring.profiles.active设置优先，若设置了spring.profiles.active属性的话，它的值就会用来确定哪个profile是激活的。否则Spring
+将会查找spring.profiles.default的值，若均没有设置，那么就没有激活的profiles，因此只会创建那些没有定义在profile的bean
+
+设值spring.profiles.active和spring.profiles.default值的方式
+作为DispatcherServlet的初始化参数
+作为web应用的上下文参数
+作为JNDI条目
+作为环境变量
+作为JVM的系统属性
+在集成测试类上，使用@ActiveProfiles注解设置
+
+可以同时激活多个profile，即列出多个profile的值，中间以逗号分隔
+
+实例代码：
+在web.xml文件中，作为web应用的上下文参数配置
+在web.xml文件中，作为DispatcherServlet应用的初始化参数配置参数配置
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://java.sun.com/xml/ns/javaee"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://java.sun.com/xml/ns/javaee
+                      http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
+  version="3.0">
+	<display-name>canal</display-name>
+	<context-param>  
+        <param-name>contextConfigLocation</param-name>  
+        <param-value>   
+            classpath*:/applicationContext-*.xml
+        </param-value>   
+    </context-param>  
+
+	<!--在web.xml文件中，作为web应用的上下文参数配置-->
+	<context-param>  
+        <param-name>spring.profiles.active</param-name>  
+        <param-value>dev</param-value>   
+    </context-param> 
+    
+	<servlet>
+		<servlet-name>Dispatcher Servlet</servlet-name>
+		<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+		<init-param>
+			<description>Spring MVC定义Bean文件，该文件为空配置，所有配置交给上级WebApplicationContext来处理</description>
+			<param-name>contextConfigLocation</param-name>
+			<param-value>WEB-INF/beans.xml</param-value>
+		</init-param>
+		<!--在web.xml文件中，作为DispatcherServlet应用的初始化参数配置参数配置-->
+		<init-param>
+			<param-name>spring.profiles.active</param-name>
+			<param-value>dev</param-value>
+		</init-param>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>Dispatcher Servlet</servlet-name>
+		<url-pattern>*.html</url-pattern>
+	</servlet-mapping>
+</web-app>
+
+使用profile进行单元测试
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration(locations = {"classpath:/resource/services_profile.xml"})
+@ActiveProfiles("dev")
+public class TestSpringBean_Profile {
+
+	@Autowired
+	private SimpleMovieLister simpleMovieLister;
+	
+	@Test
+	public void test() {
+		simpleMovieLister.testAutowired();
+	}
+}
+
+条件化的bean
+Spring4引入了一个新的注解@Conditional，他可以应用到带有@Bean的注解的方法上。
+如果给定的条件计算结果为true，就会创建这个bean，否则的话，这个bean会被忽略
+使用实例：
+
+@Configuration
+public class ConditionalConfig {
+
+	@Bean(name="simpleMovieLister")
+	@Conditional(ConditionMatch.class)
+	public SimpleMovieLister getSimpleMovieLister(){
+		return new SimpleMovieLister();
+	}
+	@Bean(name="movieFinder")
+	@Conditional(ConditionMatch.class)
+	public MovieFinder getMovieFinder(){
+		return new MovieFinder();
+	}
+	
+}
+ConditionMatch类需要实现implements Condition接口
+如下：
+public class ConditionMatch implements Condition{
+
+	@Override
+	public boolean matches(ConditionContext arg0, AnnotatedTypeMetadata arg1) {
+		// TODO Auto-generated method stub
+		Environment env = arg0.getEnvironment();
+		return !env.containsProperty("magic");
+	}
+
+}
+参数ConditionContext的方法如下：
+
+    public abstract BeanDefinitionRegistry getRegistry();
+    public abstract ConfigurableListableBeanFactory getBeanFactory();
+    public abstract Environment getEnvironment();
+    public abstract ResourceLoader getResourceLoader();
+    public abstract ClassLoader getClassLoader();
+    
+通过ConditionContext，我们可以做到如下几点：
+借助getRegistry()返回 的BeanDefinitionRegistry，检查bean定义;
+借助getBeanFactory()返回的ConfigurableListableBeanFactory，检查bean是否存在，升值探查bean的属性;
+借助getEnvironment()返回的Environment检查环境变量是否存在，一级它的值是什么;
+读取并探查getResourceLoader()返回的ResourceLoader所加载的自愿;
+借助getClassLoader()返回的ClassLoader加载并检查类是否存在。
+
+参数AnnotatedTypeMetadata的方法如下：
+    public abstract boolean isAnnotated(String s);//是否存在注解
+    public abstract Map getAnnotationAttributes(String s);//注解属性值
+    public abstract Map getAnnotationAttributes(String s, boolean flag);
+    public abstract MultiValueMap getAllAnnotationAttributes(String s);
+    public abstract MultiValueMap getAllAnnotationAttributes(String s, boolean flag);
+
+标示首选的bean
+当自动装配时，有多个bean可以选择，可标示首选bean，标示方法如下所示：
+@Primary与@Bean一起用 标示首选的bean
+@Primary与@Component组合用在组件扫面的bean上
+在xml的<bean>元素中配置primary=true表是首选的bean    
+
+限定自动装配的bean
+@Qualifier注解是使用限定符的主要方式。他可以与@Autowired和@Inject协同使用，在注入的时候哦指定要注入进去的是那个bean
+例如我们要将IceCream注入到setDessert()之中
+使用方法
+@Autowired
+@Qualifier("iceCream")
+private Dessert dessert;
+
+Bean组件
+@Component
+@Qualifier("iceCream")
+public class IceCream implements Dessert{
+
+	@Override
+	public void test() {
+		// TODO Auto-generated method stub
+		System.out.println("IceCream.....");
+	}
+
+}
+
+@Autowired与@Qualifier("xxx")一起时，@Qualifier所设置的参数就是想要注入的bean的ID，
+所有使用@Component注解声明的类都会创建为bean，并且bean的ID为首字母变为小写的类名。
+因此@Qualifier("xxx")指向的是组件扫描时所创建的bean，并且这个bean是IceCream的实例
+
+@Autowired与@Qualifier("xxx")一起时所引用的bean要具有String类型"xxx"作为限定符。
+创建bean时如果没有指定其他的限定符的话，所有的bean都会给定一个默认的限定符，这个限定符与bean的ID相同。
+我们也可以自定义bean的限定符，而不是依赖于将bean ID作为限定符。
+自定义方法是在bean声明上添加@Qualifier("xxx")注解。
+如上述@Qualifier("xxx")与@Component一起使用
+@Qualifier("xxx")也可以与@Bean一起使用,代码如下：
+	@Bean
+	@Qualifier("cake")
+	public Dessert getDessert(){
+		return new Cake();
+	}
+
+
+setDessert()方法上所指定的限定符要与注入的bean的ID或bean的限定符紧密耦合。
+
+使用自定义的限定符注解：
+当我们想使用两种限定符修饰一个类时候，我们可以在@Component修饰的bean上添加@Qualifier("xxx1")，@Qualifier("xxx2")
+但是这种写法是错误的，Java不允许在同一条目上重复出现类型相同的多个注解，如果你试图这样做的话，编译器会提示错误。
+注：在Java8中允许出现重复的注解，只要这个注解本身定义的时候带有@Repeatable注解就可以。不过,Spring的@Qualifier注解并没有在定义的时候
+添加@Repeatable注解
+但是我们可以创建自定义的限定符注解，借助这样的注解来表达bean所希望限定的特性。这个所需要做的就是创建一个注解，注解的本身要使用@Qualifier注解来标注
+这样的注解就有了@Qualifier注解的特性。他们本身实际上就成为了限定符注解
+代码如下：
+@Target({
+	ElementType.CONSTRUCTOR,
+	ElementType.FIELD,
+	ElementType.METHOD,
+	ElementType.TYPE
+})
+@Retention(RetentionPolicy.RUNTIME)
+@Qualifier
+public @interface cold {
+
+}
+注解使用方式：
+扫描创建bean组件时
+@Component
+@cold
+public class IceCream implements Dessert{
+
+	@Override
+	public void test() {
+		// TODO Auto-generated method stub
+		System.out.println("IceCream.....");
+	}
+
+}
+
+注入bean引用时
+@Autowired
+@cold
+private Dessert dessert;
+
+运行时值注入
+当我们bean装配时，打算将一个值（非引用）注入到bean的属性或者构造器参数中时，且这个值是在运行时才可以确定，。这样
+我们就不可以采用硬编码方式。为了实现这些功能，Spring提供了两种在运行时求值的方式：
+1、属性占位符
+2、Spring表达式SpEL
+
+首先我们看一下硬编码的示例：
+	<bean id="exampleBean" class="com.cn.test.ExampleBean">
+	    <constructor-arg name="years" value="7500000"/>
+	    <constructor-arg name="ultimateAnswer" value="421"/>
+	</bean>
+
+1、注入外部值
+使用@PropertySource注解和Environment来检索属性
+示例如下：
+@Configuration
+@PropertySource("classpath:/resource/test_dev.properties") //声明属性源
+public class ExpressiveConfig {
+
+	@Autowired
+	Environment env;
+	
+	@Bean
+	public ExampleBean exampleBean(){
+		ExampleBean ex = new ExampleBean();
+		ex.setUltimateAnswer(env.getProperty("disc.ultimateAnswer"));
+		ex.setYears(env.getProperty("disc.years",Integer.class,10));
+		return ex;
+	}
+}
+在创建ExampleBean时，同时给其属性ultimateAnswer和years赋值，而值的获取则是通过Environment从环境变量中拿取
+Environment类的几个方法：
+	//环境变量中是否包含属性s
+    public abstract boolean containsProperty(String s);
+	//环境变量中属性s的值
+    public abstract String getProperty(String s);
+	//环境变量中属性s的值，若没有则取默认值s1
+    public abstract String getProperty(String s, String s1);
+	//环境变量中属性s的值,并转化为类class1，若没有则为null
+    public abstract Object getProperty(String s, Class class1);
+	//环境变量中属性s的值,并转化为类class1，若没有则取默认值obj	
+    public abstract Object getProperty(String s, Class class1, Object obj);
+	//环境变量中属性s的值，若不存在抛异常
+    public abstract String getRequiredProperty(String s)
+        throws IllegalStateException;
+	//环境变量中属性s的值，并转化为类class1，若不存在抛异常
+    public abstract Object getRequiredProperty(String s, Class class1)
+        throws IllegalStateException;
+
+2、解析属性占位符
+在xml中使用占位符${xxx} xxx为配置文件中的名称
+
